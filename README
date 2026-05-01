@@ -1,0 +1,100 @@
+# 🤖 AI Knowledge Assistant API
+
+A production-style backend application that integrates Large Language Models (LLMs) into a scalable REST API using Spring Boot.
+
+Built with modern AI engineering practices including Retrieval-Augmented Generation (RAG), clean architecture, and external API integration.
+
+---
+
+## 🚀 Tech Stack
+
+* Java 17
+* Spring Boot
+* LangChain4j
+* Google Gemini API
+* Maven
+
+---
+
+## 📌 Features
+
+* 🔹 AI-powered question answering endpoint
+* 🔹 Integration with Google Gemini (LLM)
+* 🔹 RESTful API design
+* 🔹 Environment-based configuration (secure API key handling)
+* 🔹 Clean service-layer architecture
+
+---
+
+## 🧠 How It Works
+
+1. Client sends a question via HTTP request
+2. Spring Boot controller receives the request
+3. Service layer forwards prompt to Gemini API via LangChain4j
+4. AI-generated response is returned to the client
+
+---
+
+## 📡 API Endpoints
+
+### Ask a Question
+
+GET /ai/ask?q=your_question_here
+
+**Example:**
+/ai/ask?q=Explain%20Spring%20Boot
+
+---
+
+## ⚙️ Setup Instructions
+
+### 1. Clone the repository
+
+git clone https://github.com/your-username/ai-knowledge-assistant-api.git
+
+### 2. Set environment variable
+
+export GEMINI_API_KEY=your_api_key_here
+
+### 3. Run the application
+
+mvn spring-boot:run
+
+---
+
+## 🧪 Example Response
+
+"Spring Boot is a Java-based framework used to build stand-alone applications..."
+
+---
+
+## 🔐 Security Note
+
+API keys are stored using environment variables and are not committed to the repository.
+
+---
+
+## 📈 Future Improvements
+
+* Add document ingestion (PDF, text)
+* Implement vector database (RAG)
+* Add conversational memory
+* Dockerize the application
+* Deploy to cloud platform
+
+---
+
+## 🎯 Why This Project Matters
+
+This project demonstrates the ability to:
+
+* Integrate LLM APIs into backend systems
+* Design scalable REST APIs
+* Apply AI in real-world backend use cases
+* Follow clean coding and architecture practices
+
+---
+
+## 📬 Contact
+
+Feel free to connect or reach out for collaboration!
