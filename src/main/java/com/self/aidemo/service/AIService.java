@@ -21,13 +21,16 @@ public class AIService {
 
         Map<String, Object> request = Map.of(
                 "model", "llama3",
-                "prompt", question,
+                "prompt", "You are a helpful Java backend tutor. Answer clearly:\n" + question,
                 "stream", false
         );
 
 
-        Map response = restTemplate.postForObject(url, request, Map.class);
-
-        return response.toString(); // we'll clean this later
+        try {
+            Map response = restTemplate.postForObject(url, request, Map.class);
+            return (String) response.get("response");
+        } catch (Exception e) {
+            return "Error: Unable to get response from AI";
+        }
     }
 }
