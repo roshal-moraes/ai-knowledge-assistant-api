@@ -12,6 +12,8 @@ import java.util.Map;
 
 @Service
 public class AIService {
+    private String documentContext = "";
+
     private final List<String> conversationHistory = new ArrayList<>();
 
     private final String API_KEY = System.getenv("GEMINI_API_KEY");
@@ -26,12 +28,19 @@ public class AIService {
         if (conversationHistory.size() > 10) {
             conversationHistory.remove(0);
         }
-        String fullPrompt = String.join("\n", conversationHistory) + "\nAI:";
+
+        String fullPrompt =
+                "Use this document to answer the question:\n"
+                        + documentContext
+                        + "\n\nConversation:\n"
+                        + String.join("\n", conversationHistory)
+                        + "\nAI:";
 
         Map<String, Object> request = Map.of(
-                "model", "llama3",
+                "model", "phi3",//switchingfrom llama3 to phi for faster answers.
                 "prompt", "You are a helpful Java backend tutor. Answer clearly:\n" + fullPrompt,
-                "stream", false
+                "stream", false,
+                "num_predict", 100
         );
 
 
@@ -51,5 +60,9 @@ public class AIService {
         } catch (Exception e) {
             return "Error: Unable to get response from AI";
         }
+    }
+
+    public void storeDocument(String content) {
+        this.documentContext = content;
     }
 }
