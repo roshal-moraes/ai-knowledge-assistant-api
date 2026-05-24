@@ -9,6 +9,8 @@ import org.springframework.web.client.RestTemplate;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingSearchResult;
 
+import dev.langchain4j.store.embedding.chroma.ChromaEmbeddingStore;
+
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
 import dev.langchain4j.data.segment.TextSegment;
 
@@ -21,9 +23,7 @@ import java.util.Map;
 public class AIService {
 
     private final OllamaEmbeddingModel embeddingModel;
-
-    private final InMemoryEmbeddingStore<TextSegment> embeddingStore =
-            new InMemoryEmbeddingStore<>();
+    private final ChromaEmbeddingStore embeddingStore;
 
     private String documentContext = "";
 
@@ -31,8 +31,12 @@ public class AIService {
 
     private final String API_KEY = System.getenv("GEMINI_API_KEY");
 
-    public AIService(OllamaEmbeddingModel embeddingModel) {
+    public AIService(
+            OllamaEmbeddingModel embeddingModel,
+            ChromaEmbeddingStore embeddingStore
+    ) {
         this.embeddingModel = embeddingModel;
+        this.embeddingStore = embeddingStore;
     }
 
 
