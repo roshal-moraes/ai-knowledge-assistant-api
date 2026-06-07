@@ -2,6 +2,8 @@ package com.self.aidemo.service;
 
 
 import com.self.aidemo.assistant.AIAssistant;
+import com.self.aidemo.entity.ChatMessage;
+import com.self.aidemo.repository.ChatMessageRepository;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
 import dev.langchain4j.model.ollama.OllamaEmbeddingModel;
 import org.springframework.stereotype.Service;
@@ -47,7 +49,9 @@ public class AIService {
 
     private String documentContext = "";
 
-    private final List<String> conversationHistory = new ArrayList<>();
+    //private final List<String> conversationHistory = new ArrayList<>();
+
+    private final ChatMessageRepository chatRepository;
 
     private final String API_KEY = System.getenv("GEMINI_API_KEY");
 
@@ -61,11 +65,13 @@ public class AIService {
     public AIService(
             OllamaEmbeddingModel embeddingModel,
             ChromaEmbeddingStore embeddingStore,
-            AIAssistant assistant
+            AIAssistant assistant,
+            ChatMessageRepository chatRepository
     ) {
         this.embeddingModel = embeddingModel;
         this.embeddingStore = embeddingStore;
         this.assistant = assistant;
+        this.chatRepository = chatRepository;
     }
 
 
@@ -95,10 +101,16 @@ public class AIService {
        String url = "http://localhost:11434/api/generate";
         RestTemplate restTemplate = new RestTemplate();
 
-        conversationHistory.add("User: " + question);
-        if (conversationHistory.size() > 10) {
+        chatRepository.save(
+                new ChatMessage("User", question)
+        );
+        /*if (conversationHistory.size() > 10) {
             conversationHistory.remove(0);
-        }
+        }*/
+
+        String conversation = chatRepository.findAll().stream()
+                .map(msg -> msg.getSender() + ": " + msg.getMessage())
+                .reduce("", (a, b) -> a + "\n" + b);
         var queryEmbedding = embeddingModel.embed(question).content();
 
         EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
@@ -117,7 +129,7 @@ public class AIService {
                 "Use this document to answer the question:\n"
                         + retrievedContext
                         + "\n\nConversation:\n"
-                        + String.join("\n", conversationHistory)
+                        + conversation
                         + "\nAI:";
 
         Map<String, Object> ollamaRequest = Map.of(
@@ -135,11 +147,13 @@ public class AIService {
             Map response = restTemplate.postForObject(url, ollamaRequest, Map.class);
             String answer = (String) response.get("response");
             //System.out.println(response.toString());
-            conversationHistory.add("AI: " + answer);
+            chatRepository.save(
+                    new ChatMessage("AI", answer)
+            );
 
-            if (conversationHistory.size() > 10) {
+            /*if (conversationHistory.size() > 10) {
                 conversationHistory.remove(0);
-            }
+            }*/
 
 
             return answer;
@@ -170,11 +184,13 @@ public class AIService {
      */
     public String ask(String question) {
 
-        conversationHistory.add("User: " + question);
+        chatRepository.save(
+                new ChatMessage("User", question)
+        );
 
-        if (conversationHistory.size() > 10) {
+        /*if (conversationHistory.size() > 10) {
             conversationHistory.remove(0);
-        }
+        }*/
 
         var queryEmbedding = embeddingModel.embed(question).content();
 
@@ -189,12 +205,14 @@ public class AIService {
         String retrievedContext = result.matches().stream()
                 .map(match -> match.embedded().text())
                 .reduce("", (a, b) -> a + "\n" + b);
-
+        String conversation = chatRepository.findAll().stream()
+                .map(msg -> msg.getSender() + ": " + msg.getMessage())
+                .reduce("", (a, b) -> a + "\n" + b);
         String fullPrompt =
                 "Use this document to answer the question:\n"
                         + retrievedContext
                         + "\n\nConversation:\n"
-                        + String.join("\n", conversationHistory)
+                        +  conversation
                         + "\nAI:";
 
         String answer = assistant.chat(
@@ -202,12 +220,16 @@ public class AIService {
                         + fullPrompt
         );
 
-        conversationHistory.add("AI: " + answer);
 
-        if (conversationHistory.size() > 10) {
+        chatRepository.save(
+                new ChatMessage("AI", answer)
+        );
+
+
+        /*if (conversationHistory.size() > 10) {
             conversationHistory.remove(0);
         }
-
+*/
         return answer;
     }
 
