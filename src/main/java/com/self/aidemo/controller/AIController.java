@@ -41,10 +41,12 @@ public class AIController {
      * @param q the user's question
      * @return AI-generated answer
      */
-    @GetMapping("/ask")
-    public AIResponse ask(@RequestParam String q) {
 
-        String result = aiService.ask(q);
+
+    @GetMapping("/ask")
+    public AIResponse ask(@RequestParam String sessionId,@RequestParam String q) {
+
+        String result = aiService.ask(sessionId, q);
         return new AIResponse(result);
     }
 }

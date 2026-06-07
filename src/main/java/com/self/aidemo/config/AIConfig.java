@@ -2,6 +2,9 @@ package com.self.aidemo.config;
 
 import com.self.aidemo.assistant.AIAssistant;
 import com.self.aidemo.tools.TimeTools;
+import dev.langchain4j.memory.ChatMemory;
+import dev.langchain4j.memory.chat.ChatMemoryProvider;
+import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.ollama.OllamaChatModel;
 import dev.langchain4j.model.ollama.OllamaEmbeddingModel;
 import dev.langchain4j.service.AiServices;
@@ -9,6 +12,9 @@ import dev.langchain4j.store.embedding.chroma.ChromaApiVersion;
 import dev.langchain4j.store.embedding.chroma.ChromaEmbeddingStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -83,6 +89,28 @@ public class AIConfig {
                 .modelName("llama3.1")
                 .build();
     }
+    /**
+     *
+     * ChatMemory holds current chat messages
+     *
+     *
+     * */
+    /*@Bean
+    public ChatMemory chatMemory() {
+        return MessageWindowChatMemory.withMaxMessages(20);
+    }*/
+
+    @Bean
+    public ChatMemoryProvider chatMemoryProvider() {
+
+        Map<Object, ChatMemory> memories = new ConcurrentHashMap<>();
+
+        return memoryId ->
+                memories.computeIfAbsent(
+                        memoryId,
+                        id -> MessageWindowChatMemory.withMaxMessages(20)
+                );
+    }
 
     /**
      * Creates the high-level AI assistant using LangChain4j AiServices.
@@ -97,18 +125,29 @@ public class AIConfig {
      * {@code AIAssistant} interface and manages tool invocation.</p>
      *
      * @param chatModel configured LLM chat model
-     * @param timeTools available AI-callable tools
      * @return configured AI assistant
      */
 
-    @Bean
+    /*@Bean
     public AIAssistant aiAssistant(
             OllamaChatModel chatModel,
+//            // @param timeTools available AI-callable tools
             TimeTools timeTools
     ) {
         return AiServices.builder(AIAssistant.class)
                 .chatModel(chatModel)
                 .tools(timeTools)
                 .build();
+    }*/
+    @Bean
+    public AIAssistant aiAssistant(
+            OllamaChatModel chatModel,
+            ChatMemoryProvider chatMemoryProvider
+    ) {
+        return AiServices.builder(AIAssistant.class)
+                .chatModel(chatModel)
+                .chatMemoryProvider(chatMemoryProvider)
+                .build();
     }
+
 }

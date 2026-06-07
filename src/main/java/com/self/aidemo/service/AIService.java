@@ -182,7 +182,7 @@ public class AIService {
      * @param question the user's input question
      * @return AI-generated response
      */
-    public String ask(String question) {
+    public String ask(String sessionId, String question) {
 
         chatRepository.save(
                 new ChatMessage("User", question)
@@ -215,7 +215,9 @@ public class AIService {
                         +  conversation
                         + "\nAI:";
 
-        String answer = assistant.chat(
+
+
+        String answer = assistant.chat(sessionId,
                 "You are a helpful Java backend tutor. Answer clearly:\n"
                         + fullPrompt
         );
