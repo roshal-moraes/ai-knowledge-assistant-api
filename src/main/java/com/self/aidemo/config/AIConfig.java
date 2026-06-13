@@ -1,12 +1,16 @@
 package com.self.aidemo.config;
 
 import com.self.aidemo.assistant.AIAssistant;
+import com.self.aidemo.assistant.StreamingAssistant;
 import com.self.aidemo.tools.TimeTools;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
+import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.ollama.OllamaChatModel;
 import dev.langchain4j.model.ollama.OllamaEmbeddingModel;
+import dev.langchain4j.model.ollama.OllamaStreamingChatModel;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.store.embedding.chroma.ChromaApiVersion;
 import dev.langchain4j.store.embedding.chroma.ChromaEmbeddingStore;
@@ -89,6 +93,24 @@ public class AIConfig {
                 .modelName("llama3.1")
                 .build();
     }
+
+    /**
+     * Creates the streaming chat model used for natural language generation.
+     *
+     * <p>This model generates responses to user prompts and may
+     * invoke registered tools when needed.</p>
+     *
+     * @return configured Ollama chat model
+     */
+    @Bean
+    public StreamingChatModel streamingChatModel() {
+        return OllamaStreamingChatModel.builder()
+                .baseUrl("http://localhost:11434")
+                .modelName("llama3.1")
+                .build();
+    }
+
+
     /**
      *
      * ChatMemory holds current chat messages
@@ -141,11 +163,39 @@ public class AIConfig {
     }*/
     @Bean
     public AIAssistant aiAssistant(
-            OllamaChatModel chatModel,
+            ChatModel chatModel,
             ChatMemoryProvider chatMemoryProvider
     ) {
         return AiServices.builder(AIAssistant.class)
                 .chatModel(chatModel)
+                .chatMemoryProvider(chatMemoryProvider)
+                .build();
+    }
+
+
+    /**
+     * Creates the streaming AI assistant used for real-time responses.
+     *
+     * <p>This assistant is separate from the regular {@link AIAssistant}
+     * used in previous phases. It uses a {@link StreamingChatModel}
+     * so responses can be delivered token-by-token instead of waiting
+     * for the full answer.</p>
+     *
+     * <p>The same session-based memory provider is reused so each user
+     * maintains conversation context across requests.</p>
+     *
+     * @param streamingChatModel configured streaming chat model
+     * @param chatMemoryProvider session-based memory provider
+     * @return configured streaming assistant
+     */
+    @Bean
+    public StreamingAssistant streamingAssistant(
+            StreamingChatModel streamingChatModel,
+            ChatMemoryProvider chatMemoryProvider
+    ) {
+
+        return AiServices.builder(StreamingAssistant.class)
+                .streamingChatModel(streamingChatModel)
                 .chatMemoryProvider(chatMemoryProvider)
                 .build();
     }
