@@ -11,6 +11,11 @@ import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.ollama.OllamaChatModel;
 import dev.langchain4j.model.ollama.OllamaEmbeddingModel;
 import dev.langchain4j.model.ollama.OllamaStreamingChatModel;
+import dev.langchain4j.rag.DefaultRetrievalAugmentor;
+import dev.langchain4j.rag.RetrievalAugmentor;
+import dev.langchain4j.rag.content.retriever.ContentRetriever;
+import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
+import dev.langchain4j.rag.query.router.DefaultQueryRouter;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.store.embedding.chroma.ChromaApiVersion;
 import dev.langchain4j.store.embedding.chroma.ChromaEmbeddingStore;
@@ -74,7 +79,7 @@ public class AIConfig {
                 .apiVersion(ChromaApiVersion.V2)
                 .tenantName("default_tenant")
                 .databaseName("default_database")
-                .collectionName("aidemo")
+                .collectionName("aidemo2")
                 .build();
     }
 
@@ -134,6 +139,81 @@ public class AIConfig {
                 );
     }
 
+
+
+    /**
+     * Creates the streaming AI assistant used for real-time responses.
+     *
+     * <p>This assistant is separate from the regular {@link AIAssistant}
+     * used in previous phases. It uses a {@link StreamingChatModel}
+     * so responses can be delivered token-by-token instead of waiting
+     * for the full answer.</p>
+     *
+     * <p>The same session-based memory provider is reused so each user
+     * maintains conversation context across requests.</p>
+     *
+     * @param streamingChatModel configured streaming chat model
+     * @param chatMemoryProvider session-based memory provider
+     * @return configured streaming assistant
+     */
+    @Bean
+    public StreamingAssistant streamingAssistant(
+            StreamingChatModel streamingChatModel,
+            ChatMemoryProvider chatMemoryProvider
+    ) {
+
+        return AiServices.builder(StreamingAssistant.class)
+                .streamingChatModel(streamingChatModel)
+                .chatMemoryProvider(chatMemoryProvider)
+                .build();
+    }
+
+
+    /**
+     * Creates the content retriever used by the RAG pipeline.
+     *
+     * <p>The retriever converts the user query into an embedding,
+     * searches Chroma for similar document chunks, and returns
+     * the most relevant segments.</p>
+     *
+     * @param embeddingStore Chroma vector database
+     * @param embeddingModel embedding model used for query vectors
+     * @return configured content retriever
+     */
+    @Bean
+    public ContentRetriever contentRetriever(
+            ChromaEmbeddingStore embeddingStore,
+            OllamaEmbeddingModel embeddingModel
+    ) {
+
+        return EmbeddingStoreContentRetriever.builder()
+                .embeddingStore(embeddingStore)
+                .embeddingModel(embeddingModel)
+                .maxResults(3)
+                .minScore(0.1)
+                .build();
+    }
+
+    /**
+     * Creates the RetrievalAugmentor used by RAG.
+     *
+     * <p>The augmentor retrieves relevant document chunks from the
+     * vector database and injects them into the prompt before sending
+     * the request to the LLM.</p>
+     *
+     * @param contentRetriever retriever responsible for semantic search
+     * @return configured retrieval augmentor
+     */
+    @Bean
+    public RetrievalAugmentor retrievalAugmentor(
+            ContentRetriever contentRetriever
+    ) {
+
+        return DefaultRetrievalAugmentor.builder()
+                .queryRouter(new DefaultQueryRouter(contentRetriever))
+                .build();
+    }
+
     /**
      * Creates the high-level AI assistant using LangChain4j AiServices.
      *
@@ -164,39 +244,13 @@ public class AIConfig {
     @Bean
     public AIAssistant aiAssistant(
             ChatModel chatModel,
-            ChatMemoryProvider chatMemoryProvider
+            ChatMemoryProvider chatMemoryProvider,
+            RetrievalAugmentor retrievalAugmentor
     ) {
         return AiServices.builder(AIAssistant.class)
                 .chatModel(chatModel)
                 .chatMemoryProvider(chatMemoryProvider)
-                .build();
-    }
-
-
-    /**
-     * Creates the streaming AI assistant used for real-time responses.
-     *
-     * <p>This assistant is separate from the regular {@link AIAssistant}
-     * used in previous phases. It uses a {@link StreamingChatModel}
-     * so responses can be delivered token-by-token instead of waiting
-     * for the full answer.</p>
-     *
-     * <p>The same session-based memory provider is reused so each user
-     * maintains conversation context across requests.</p>
-     *
-     * @param streamingChatModel configured streaming chat model
-     * @param chatMemoryProvider session-based memory provider
-     * @return configured streaming assistant
-     */
-    @Bean
-    public StreamingAssistant streamingAssistant(
-            StreamingChatModel streamingChatModel,
-            ChatMemoryProvider chatMemoryProvider
-    ) {
-
-        return AiServices.builder(StreamingAssistant.class)
-                .streamingChatModel(streamingChatModel)
-                .chatMemoryProvider(chatMemoryProvider)
+                .retrievalAugmentor(retrievalAugmentor)
                 .build();
     }
 

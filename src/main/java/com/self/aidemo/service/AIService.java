@@ -4,6 +4,8 @@ package com.self.aidemo.service;
 import com.self.aidemo.assistant.AIAssistant;
 import com.self.aidemo.entity.ChatMessage;
 import com.self.aidemo.repository.ChatMessageRepository;
+import dev.langchain4j.data.document.Document;
+import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
 import dev.langchain4j.model.ollama.OllamaEmbeddingModel;
 import org.springframework.stereotype.Service;
@@ -241,29 +243,22 @@ public class AIService {
     }*/
 
     /**
-     * Stores a document in the vector database for future semantic retrieval.
+     * Stores a document in Chroma after splitting it into smaller chunks.
      *
-     * <p>The document is split into sentence-based chunks, each chunk is
-     * converted into an embedding, and the resulting vectors are stored
-     * in the Chroma embedding store.</p>
-     *
-     * <p>Blank chunks are ignored to prevent embedding errors.</p>
-     *
-     * @param content raw document text to embed and store
+     * @param content raw document text
      */
     public void storeDocument(String content) {
 
-        List<String> chunks = List.of(content.split("\\."));
+        Document document = Document.from(content);
 
-        for (String chunk : chunks) {
+        List<TextSegment> segments =
+                DocumentSplitters.recursive(
+                                500,   // chunk size
+                                100    // overlap
+                        )
+                        .split(document);
 
-            chunk = chunk.trim();
-
-            if (chunk.isBlank()) {
-                continue;
-            }
-
-            TextSegment segment = TextSegment.from(chunk);
+        for (TextSegment segment : segments) {
 
             var embedding = embeddingModel.embed(segment).content();
 

@@ -1,6 +1,7 @@
 package com.self.aidemo.assistant;
 
 import dev.langchain4j.service.MemoryId;
+import dev.langchain4j.service.UserMessage;
 
 /**
  * High-level AI assistant abstraction used by LangChain4j AiServices.
@@ -23,8 +24,8 @@ public interface AIAssistant {
      * @param message the prompt or user message to send to the AI
      * @return the AI-generated response
      */
-    String chat(@MemoryId String memoryId,
-                String message);
+    String chat(@MemoryId String sessionId,
+                @UserMessage String message);
     //String chat(String message);
 
 }
