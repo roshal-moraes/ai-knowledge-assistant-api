@@ -46,7 +46,9 @@ public class AIController {
     @GetMapping("/ask")
     public AIResponse ask(@RequestParam String sessionId,@RequestParam String q) {
 
-        String result = aiService.ask(sessionId, q);
-        return new AIResponse(result);
+        AIResponse response =  aiService.ask(sessionId, q);
+        System.out.println(response);
+        return response;
+
     }
 }

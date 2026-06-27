@@ -2,12 +2,16 @@ package com.self.aidemo.service;
 
 
 import com.self.aidemo.assistant.AIAssistant;
+import com.self.aidemo.dto.AIResponse;
 import com.self.aidemo.entity.ChatMessage;
+import com.self.aidemo.entity.UploadedDocument;
 import com.self.aidemo.repository.ChatMessageRepository;
-import dev.langchain4j.data.document.Document;
-import dev.langchain4j.data.document.splitter.DocumentSplitters;
-import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
+
+import com.self.aidemo.repository.UploadedDocumentRepository;
 import dev.langchain4j.model.ollama.OllamaEmbeddingModel;
+import dev.langchain4j.rag.content.Content;
+import dev.langchain4j.rag.content.retriever.ContentRetriever;
+import dev.langchain4j.rag.query.Query;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -19,9 +23,9 @@ import dev.langchain4j.store.embedding.chroma.ChromaEmbeddingStore;
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
 import dev.langchain4j.data.segment.TextSegment;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
 /**
  * Core AI service responsible for:
  * <ul>
@@ -57,25 +61,32 @@ public class AIService {
 
     private final String API_KEY = System.getenv("GEMINI_API_KEY");
 
+    private final ContentRetriever contentRetriever;
+    private UploadedDocumentRepository uploadedDocumentRepository;
+
     /**
      * Creates the AI service with required dependencies.
      *
-     * @param embeddingModel embedding model used to convert text into vector embeddings
-     * @param embeddingStore persistent Chroma vector database used for semantic retrieval
-     * @param assistant LangChain4j AI assistant capable of tool calling
+     * @param embeddingModel   embedding model used to convert text into vector embeddings
+     * @param embeddingStore   persistent Chroma vector database used for semantic retrieval
+     * @param assistant        LangChain4j AI assistant capable of tool calling
+     * @param contentRetriever Create a dedicated retrieval method
      */
     public AIService(
-            OllamaEmbeddingModel embeddingModel,
-            ChromaEmbeddingStore embeddingStore,
             AIAssistant assistant,
-            ChatMessageRepository chatRepository
-    ) {
-        this.embeddingModel = embeddingModel;
-        this.embeddingStore = embeddingStore;
-        this.assistant = assistant;
-        this.chatRepository = chatRepository;
-    }
+            ChromaEmbeddingStore embeddingStore,
+            OllamaEmbeddingModel embeddingModel,
+            ContentRetriever contentRetriever,
+            ChatMessageRepository chatRepository,
+            UploadedDocumentRepository uploadedDocumentRepository) {
 
+        this.assistant = assistant;
+        this.embeddingStore = embeddingStore;
+        this.embeddingModel = embeddingModel;
+        this.contentRetriever = contentRetriever;
+        this.chatRepository = chatRepository;
+        this.uploadedDocumentRepository = uploadedDocumentRepository;
+    }
 
 
     /**
@@ -100,7 +111,7 @@ public class AIService {
     public String askWithManualOllama(String question) {
 
         //String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + API_KEY;
-       String url = "http://localhost:11434/api/generate";
+        String url = "http://localhost:11434/api/generate";
         RestTemplate restTemplate = new RestTemplate();
 
         chatRepository.save(
@@ -184,86 +195,61 @@ public class AIService {
      * @param question the user's input question
      * @return AI-generated response
      */
-    public String ask(String sessionId, String question) {
+    public AIResponse ask(String sessionId, String question) {
 
-        chatRepository.save(
-                new ChatMessage("User", question)
-        );
+        // Optional: Persist conversation for history/auditing
+        chatRepository.save(new ChatMessage("User", question));
 
-        /*if (conversationHistory.size() > 10) {
-            conversationHistory.remove(0);
-        }*/
+        // Let LangChain4j handle:
+        // - Chat memory
+        // - Retrieval
+        // - Prompt augmentation
+        String answer = assistant.chat(sessionId, question);
 
-        var queryEmbedding = embeddingModel.embed(question).content();
+        chatRepository.save(new ChatMessage("AI", answer));
 
-        EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
-                .queryEmbedding(queryEmbedding)
-                .maxResults(10)
-                .build();
+        List<String> sources = getSources(question);
 
-        EmbeddingSearchResult<TextSegment> result =
-                embeddingStore.search(searchRequest);
-
-        String retrievedContext = result.matches().stream()
-                .map(match -> match.embedded().text())
-                .reduce("", (a, b) -> a + "\n" + b);
-        String conversation = chatRepository.findAll().stream()
-                .map(msg -> msg.getSender() + ": " + msg.getMessage())
-                .reduce("", (a, b) -> a + "\n" + b);
-        String fullPrompt =
-                "Use this document to answer the question:\n"
-                        + retrievedContext
-                        + "\n\nConversation:\n"
-                        +  conversation
-                        + "\nAI:";
-
-
-
-        String answer = assistant.chat(sessionId,
-                "You are a helpful Java backend tutor. Answer clearly:\n"
-                        + fullPrompt
-        );
-
-
-        chatRepository.save(
-                new ChatMessage("AI", answer)
-        );
-
-
-        /*if (conversationHistory.size() > 10) {
-            conversationHistory.remove(0);
-        }
-*/
-        return answer;
+        return new AIResponse(answer, sources);
     }
 
+    public List<String> getSources(String question) {
 
-    /*public void storeDocument(String content) {
-        this.documentContext = content;
-    }*/
+        Query query = Query.from(question);
 
-    /**
-     * Stores a document in Chroma after splitting it into smaller chunks.
-     *
-     * @param content raw document text
-     */
-    public void storeDocument(String content) {
+        List<Content> contents = contentRetriever.retrieve(query)
+                .stream()
+                .filter(content -> {
 
-        Document document = Document.from(content);
+                    TextSegment segment = (TextSegment) content.textSegment();
 
-        List<TextSegment> segments =
-                DocumentSplitters.recursive(
-                                500,   // chunk size
-                                100    // overlap
-                        )
-                        .split(document);
+                    String documentId =
+                            segment.metadata().getString("documentId");
 
-        for (TextSegment segment : segments) {
+                    UploadedDocument doc =
+                            uploadedDocumentRepository.findByDocumentId(documentId);
 
-            var embedding = embeddingModel.embed(segment).content();
+                    return doc != null && doc.isActive();
 
-            embeddingStore.add(embedding, segment);
-        }
+                })
+                .toList();
+
+        System.out.println("========== RETRIEVED SEGMENTS ==========");
+
+        contents.forEach(content -> {
+            TextSegment segment = (TextSegment) content.textSegment();
+
+            System.out.println("----------------------------------------");
+            System.out.println("Filename : " + segment.metadata().getString("filename"));
+            System.out.println(segment.text());
+        });
+
+        return contents.stream()
+                .map(content -> ((TextSegment) content.textSegment())
+                        .metadata()
+                        .getString("filename"))
+                .distinct()
+                .toList();
     }
 
 

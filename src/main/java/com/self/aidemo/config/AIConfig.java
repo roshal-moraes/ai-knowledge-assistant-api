@@ -22,6 +22,7 @@ import dev.langchain4j.store.embedding.chroma.ChromaEmbeddingStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -79,7 +80,7 @@ public class AIConfig {
                 .apiVersion(ChromaApiVersion.V2)
                 .tenantName("default_tenant")
                 .databaseName("default_database")
-                .collectionName("aidemo2")
+                .collectionName("spring-rag")
                 .build();
     }
 
@@ -96,6 +97,7 @@ public class AIConfig {
         return OllamaChatModel.builder()
                 .baseUrl("http://localhost:11434")
                 .modelName("llama3.1")
+                .timeout(Duration.ofSeconds(620))
                 .build();
     }
 
@@ -121,12 +123,12 @@ public class AIConfig {
      * ChatMemory holds current chat messages
      *
      *
-     * */
+     *
+     */
     /*@Bean
     public ChatMemory chatMemory() {
         return MessageWindowChatMemory.withMaxMessages(20);
     }*/
-
     @Bean
     public ChatMemoryProvider chatMemoryProvider() {
 
@@ -138,7 +140,6 @@ public class AIConfig {
                         id -> MessageWindowChatMemory.withMaxMessages(20)
                 );
     }
-
 
 
     /**
@@ -189,8 +190,8 @@ public class AIConfig {
         return EmbeddingStoreContentRetriever.builder()
                 .embeddingStore(embeddingStore)
                 .embeddingModel(embeddingModel)
-                .maxResults(3)
-                .minScore(0.1)
+                .maxResults(2)
+                .minScore(0.8)
                 .build();
     }
 
@@ -247,10 +248,17 @@ public class AIConfig {
             ChatMemoryProvider chatMemoryProvider,
             RetrievalAugmentor retrievalAugmentor
     ) {
+
         return AiServices.builder(AIAssistant.class)
                 .chatModel(chatModel)
                 .chatMemoryProvider(chatMemoryProvider)
                 .retrievalAugmentor(retrievalAugmentor)
+                .systemMessageProvider(memoryId -> """
+                        You are a helpful Java backend tutor. 
+                        Always answer using the retrieved document context when it is relevant.
+                        If the answer cannot be found in the retrieved documents, clearly say so instead of inventing information.
+                        Be concise and accurate.
+                        """)
                 .build();
     }
 
