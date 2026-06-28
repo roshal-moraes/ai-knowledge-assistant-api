@@ -2,6 +2,7 @@ package com.self.aidemo.service;
 
 import com.self.aidemo.assistant.AIAssistant;
 import com.self.aidemo.dto.DocumentInfo;
+import com.self.aidemo.dto.RetrievedChunk;
 import com.self.aidemo.entity.UploadedDocument;
 import com.self.aidemo.repository.ChatMessageRepository;
 import com.self.aidemo.repository.UploadedDocumentRepository;
@@ -11,6 +12,8 @@ import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.ollama.OllamaEmbeddingModel;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
+import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
+import dev.langchain4j.store.embedding.EmbeddingSearchResult;
 import dev.langchain4j.store.embedding.chroma.ChromaEmbeddingStore;
 import dev.langchain4j.store.embedding.filter.Filter;
 import dev.langchain4j.store.embedding.filter.MetadataFilterBuilder;
@@ -154,6 +157,58 @@ public class DocumentService {
                         doc.getSource(),
                         true
                 ))
+                .toList();
+    }
+
+
+    /**
+     * Retrieves the most relevant document chunks for a user query.
+     *
+     * <p>This method performs semantic search against the vector database
+     * without invoking the language model. It is primarily intended for
+     * debugging and understanding the Retrieval-Augmented Generation (RAG)
+     * pipeline.</p>
+     *
+     * <p>Each returned chunk contains:
+     * <ul>
+     *     <li>The source filename</li>
+     *     <li>The similarity score</li>
+     *     <li>The retrieved text</li>
+     * </ul>
+     * </p>
+     *
+     * @param question the user's search query
+     * @return list of retrieved document chunks ordered by similarity
+     */
+    public List<RetrievedChunk> debugRetrieve(String question) {
+
+        var queryEmbedding = embeddingModel.embed(question).content();
+
+        EmbeddingSearchRequest request = EmbeddingSearchRequest.builder()
+                .queryEmbedding(queryEmbedding)
+                .maxResults(5)
+                .minScore(0.7)
+                .build();
+
+        EmbeddingSearchResult<TextSegment> result =
+                embeddingStore.search(request);
+
+        return result.matches()
+                .stream()
+                .map(match -> {
+
+                    TextSegment segment = match.embedded();
+
+                    String filename =
+                            segment.metadata().getString("filename");
+
+                    return new RetrievedChunk(
+                            filename,
+                            match.score(),
+                            segment.text()
+                    );
+
+                })
                 .toList();
     }
 

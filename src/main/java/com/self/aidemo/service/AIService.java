@@ -3,6 +3,8 @@ package com.self.aidemo.service;
 
 import com.self.aidemo.assistant.AIAssistant;
 import com.self.aidemo.dto.AIResponse;
+import com.self.aidemo.dto.DebugRagResponse;
+import com.self.aidemo.dto.RetrievedChunk;
 import com.self.aidemo.entity.ChatMessage;
 import com.self.aidemo.entity.UploadedDocument;
 import com.self.aidemo.repository.ChatMessageRepository;
@@ -25,6 +27,7 @@ import dev.langchain4j.data.segment.TextSegment;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Core AI service responsible for:
@@ -64,6 +67,8 @@ public class AIService {
     private final ContentRetriever contentRetriever;
     private UploadedDocumentRepository uploadedDocumentRepository;
 
+    private final DocumentService documentService;
+
     /**
      * Creates the AI service with required dependencies.
      *
@@ -78,7 +83,8 @@ public class AIService {
             OllamaEmbeddingModel embeddingModel,
             ContentRetriever contentRetriever,
             ChatMessageRepository chatRepository,
-            UploadedDocumentRepository uploadedDocumentRepository) {
+            UploadedDocumentRepository uploadedDocumentRepository,
+            DocumentService documentService) {
 
         this.assistant = assistant;
         this.embeddingStore = embeddingStore;
@@ -86,6 +92,7 @@ public class AIService {
         this.contentRetriever = contentRetriever;
         this.chatRepository = chatRepository;
         this.uploadedDocumentRepository = uploadedDocumentRepository;
+        this.documentService = documentService;
     }
 
 
@@ -250,6 +257,70 @@ public class AIService {
                         .getString("filename"))
                 .distinct()
                 .toList();
+    }
+
+    /**
+     * Executes the complete Retrieval-Augmented Generation (RAG) pipeline
+     * and returns every intermediate step for debugging purposes.
+     *
+     * <p>This method is intended for development and learning. It exposes
+     * the retrieved document chunks, the constructed prompt, and the final
+     * language model response.</p>
+     *
+     * @param sessionId unique chat session identifier
+     * @param question  user's question
+     * @return complete RAG execution trace
+     */
+    public DebugRagResponse debugAsk(String sessionId, String question) {
+
+        // Step 1: Retrieve relevant chunks
+        List<RetrievedChunk> retrievedChunks =
+                documentService.debugRetrieve(question);
+
+        // Step 2: Build context string
+        String context = retrievedChunks.stream()
+                .map(chunk ->
+                        """
+                                Document: %s
+                                Similarity Score: %.3f
+                                
+                                %s
+                                -----------------------------
+                                """.formatted(
+                                chunk.filename(),
+                                chunk.score(),
+                                chunk.text()
+                        ))
+                .collect(Collectors.joining("\n"));
+
+        // Step 3: Build prompt
+        String prompt =
+                """
+                        You are a helpful Java backend tutor.
+                        
+                        Answer ONLY using the retrieved context below.
+                        
+                        If the answer cannot be found in the context,
+                        clearly say so.
+                        
+                        Context:
+                        
+                        %s
+                        
+                        Question:
+                        %s
+                        """.formatted(context, question);
+
+        // Step 4: Generate answer
+        String answer = assistant.chat(sessionId, prompt);
+
+        // Step 5: Return complete pipeline
+        return new DebugRagResponse(
+                question,
+                retrievedChunks,
+                prompt,
+                answer
+        );
     }
 
 

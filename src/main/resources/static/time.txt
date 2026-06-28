@@ -1,0 +1,31 @@
+# Working with Date and Time in Java
+
+Java provides the java.time package for handling dates and times.
+
+Important classes include:
+
+- LocalDate
+- LocalTime
+- LocalDateTime
+- ZonedDateTime
+- Instant
+
+Example:
+
+```java
+LocalDate today = LocalDate.now();
+LocalTime now = LocalTime.now();
+LocalDateTime dateTime = LocalDateTime.now();
+```
+
+Formatting dates:
+
+```java
+DateTimeFormatter formatter =
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+String formatted =
+        LocalDateTime.now().format(formatter);
+```
+
+The java.time API is immutable and thread-safe, making it the preferred replacement for the older java.util.Date and Calendar APIs.

@@ -1,0 +1,102 @@
+# Dependency Injection in Spring
+
+Dependency Injection (DI) is one of the core principles of the Spring Framework.
+
+Dependency Injection is a design pattern in which an object receives the objects it depends on rather than creating them itself. This promotes loose coupling and improves maintainability.
+
+There are three common types of dependency injection:
+
+1. Constructor Injection
+2. Setter Injection
+3. Field Injection
+
+## Constructor Injection
+
+Constructor injection is the preferred approach in modern Spring applications.
+
+Example:
+
+```java
+@Service
+public class UserService {
+
+    private final UserRepository repository;
+
+    public UserService(UserRepository repository) {
+        this.repository = repository;
+    }
+
+    public List<User> getUsers() {
+        return repository.findAll();
+    }
+}
+```
+
+Spring automatically provides a UserRepository bean when creating the UserService.
+
+Advantages of constructor injection:
+
+- Dependencies are mandatory.
+- Classes become immutable.
+- Easier unit testing.
+- Encourages clean architecture.
+
+## Setter Injection
+
+Setter injection allows optional dependencies.
+
+Example:
+
+```java
+@Component
+public class NotificationService {
+
+    private EmailService emailService;
+
+    @Autowired
+    public void setEmailService(EmailService emailService) {
+        this.emailService = emailService;
+    }
+}
+```
+
+Setter injection is useful when a dependency is optional or may change after object creation.
+
+## Field Injection
+
+Field injection places the @Autowired annotation directly on a field.
+
+Example:
+
+```java
+@Service
+public class OrderService {
+
+    @Autowired
+    private PaymentService paymentService;
+}
+```
+
+Although field injection is simple, it is generally discouraged because it makes testing more difficult and hides a class's dependencies.
+
+## Benefits of Dependency Injection
+
+Dependency Injection offers several benefits:
+
+- Loose coupling between classes.
+- Easier maintenance.
+- Better testability.
+- Improved readability.
+- Better separation of concerns.
+
+## Spring IoC Container
+
+The Spring IoC (Inversion of Control) container is responsible for creating, configuring, and managing application beans.
+
+When the application starts, the container scans configuration classes and components, creates objects, resolves dependencies, and injects them automatically.
+
+Developers focus on business logic while Spring manages object creation.
+
+## Summary
+
+Dependency Injection is one of the fundamental concepts behind Spring Framework. By allowing the container to create and inject dependencies, applications become more modular, flexible, and easier to maintain.

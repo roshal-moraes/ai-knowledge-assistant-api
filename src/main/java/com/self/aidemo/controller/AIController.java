@@ -1,6 +1,7 @@
 package com.self.aidemo.controller;
 
 import com.self.aidemo.dto.AIResponse;
+import com.self.aidemo.dto.DebugRagResponse;
 import com.self.aidemo.service.AIService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -50,5 +51,33 @@ public class AIController {
         System.out.println(response);
         return response;
 
+    }
+
+    /**
+     * Executes the complete Retrieval-Augmented Generation (RAG)
+     * pipeline and returns every intermediate step.
+     *
+     * <p>This endpoint is intended for debugging and educational
+     * purposes. It exposes:
+     *
+     * <ul>
+     *     <li>User question</li>
+     *     <li>Retrieved document chunks</li>
+     *     <li>Constructed prompt</li>
+     *     <li>Final AI response</li>
+     * </ul>
+     *
+     * This endpoint makes the RAG pipeline fully explainable.
+     *
+     * @param sessionId unique chat session
+     * @param question user question
+     * @return complete RAG execution trace
+     */
+    @GetMapping("/debug")
+    public DebugRagResponse debugAsk(
+            @RequestParam String sessionId,
+            @RequestParam("q") String question
+    ) {
+        return aiService.debugAsk(sessionId, question);
     }
 }

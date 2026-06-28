@@ -2,6 +2,7 @@ package com.self.aidemo.controller;
 
 import com.self.aidemo.document.DocumentExtractionService;
 import com.self.aidemo.dto.DocumentInfo;
+import com.self.aidemo.dto.RetrievedChunk;
 import com.self.aidemo.entity.UploadedDocument;
 import com.self.aidemo.service.DocumentService;
 import org.springframework.web.bind.annotation.*;
@@ -40,7 +41,7 @@ public class DocumentController {
     /**
      * Creates the document controller.
      *
-     * @param documentService service responsible for document ingestion
+     * @param documentService   service responsible for document ingestion
      * @param extractionService service responsible for document text extraction
      */
     public DocumentController(
@@ -123,5 +124,31 @@ public class DocumentController {
         documentService.deleteDocument(documentId);
 
         return "Document soft deleted successfully: " + documentId;
+    }
+
+    /**
+     * Retrieves the document chunks that are most relevant to a query.
+     *
+     * <p>This endpoint is intended for debugging the Retrieval-Augmented
+     * Generation (RAG) pipeline. It performs semantic search against the
+     * vector database and returns the retrieved chunks without generating
+     * an AI response.</p>
+     *
+     * <p>This helps developers understand:
+     * <ul>
+     *     <li>Which documents were retrieved</li>
+     *     <li>The similarity score of each match</li>
+     *     <li>The exact text sent to the language model</li>
+     * </ul>
+     * </p>
+     *
+     * @param question the search query
+     * @return list of retrieved document chunks
+     */
+    @GetMapping("/debug/retrieve")
+    public List<RetrievedChunk> debugRetrieve(
+            @RequestParam("q") String question
+    ) {
+        return documentService.debugRetrieve(question);
     }
 }

@@ -1,0 +1,30 @@
+# Building REST APIs with Spring Boot
+
+Spring Boot simplifies the development of RESTful web services.
+
+Common annotations include:
+
+- @RestController
+- @RequestMapping
+- @GetMapping
+- @PostMapping
+- @PutMapping
+- @DeleteMapping
+
+Example:
+
+```java
+@RestController
+@RequestMapping("/users")
+public class UserController {
+
+    @GetMapping
+    public List<User> getUsers() {
+        return service.findAll();
+    }
+}
+```
+
+Spring Boot automatically configures an embedded web server, JSON serialization, dependency injection, and request routing.
+
+REST APIs typically exchange JSON data between clients and servers.
