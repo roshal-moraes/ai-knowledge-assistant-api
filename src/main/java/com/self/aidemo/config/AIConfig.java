@@ -2,6 +2,7 @@ package com.self.aidemo.config;
 
 import com.self.aidemo.assistant.AIAssistant;
 import com.self.aidemo.assistant.StreamingAssistant;
+import com.self.aidemo.memory.SessionMemoryStore;
 import com.self.aidemo.tools.TimeTools;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
@@ -130,17 +131,11 @@ public class AIConfig {
         return MessageWindowChatMemory.withMaxMessages(20);
     }*/
     @Bean
-    public ChatMemoryProvider chatMemoryProvider() {
-
-        Map<Object, ChatMemory> memories = new ConcurrentHashMap<>();
-
-        return memoryId ->
-                memories.computeIfAbsent(
-                        memoryId,
-                        id -> MessageWindowChatMemory.withMaxMessages(20)
-                );
+    public ChatMemoryProvider chatMemoryProvider(
+            SessionMemoryStore sessionMemoryStore
+    ) {
+        return sessionMemoryStore::get;
     }
-
 
     /**
      * Creates the streaming AI assistant used for real-time responses.

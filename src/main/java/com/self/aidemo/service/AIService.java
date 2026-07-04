@@ -7,6 +7,7 @@ import com.self.aidemo.dto.DebugRagResponse;
 import com.self.aidemo.dto.RetrievedChunk;
 import com.self.aidemo.entity.ChatMessage;
 import com.self.aidemo.entity.UploadedDocument;
+import com.self.aidemo.memory.SessionMemoryStore;
 import com.self.aidemo.repository.ChatMessageRepository;
 
 import com.self.aidemo.repository.UploadedDocumentRepository;
@@ -65,7 +66,11 @@ public class AIService {
     private final String API_KEY = System.getenv("GEMINI_API_KEY");
 
     private final ContentRetriever contentRetriever;
-    private UploadedDocumentRepository uploadedDocumentRepository;
+    private final UploadedDocumentRepository uploadedDocumentRepository;
+
+    private final QuestionRewriter questionRewriter;
+    private final SessionMemoryStore sessionMemoryStore;
+    private final QueryExpander queryExpander;
 
     private final DocumentService documentService;
 
@@ -84,7 +89,10 @@ public class AIService {
             ContentRetriever contentRetriever,
             ChatMessageRepository chatRepository,
             UploadedDocumentRepository uploadedDocumentRepository,
-            DocumentService documentService) {
+            DocumentService documentService,
+            QuestionRewriter questionRewriter,
+            SessionMemoryStore sessionMemoryStore,
+            QueryExpander queryExpander) {
 
         this.assistant = assistant;
         this.embeddingStore = embeddingStore;
@@ -93,6 +101,9 @@ public class AIService {
         this.chatRepository = chatRepository;
         this.uploadedDocumentRepository = uploadedDocumentRepository;
         this.documentService = documentService;
+        this.questionRewriter = questionRewriter;
+        this.sessionMemoryStore = sessionMemoryStore;
+        this.queryExpander = queryExpander;
     }
 
 
@@ -204,21 +215,35 @@ public class AIService {
      */
     public AIResponse ask(String sessionId, String question) {
 
-        // Optional: Persist conversation for history/auditing
         chatRepository.save(new ChatMessage("User", question));
 
-        // Let LangChain4j handle:
-        // - Chat memory
-        // - Retrieval
-        // - Prompt augmentation
-        String answer = assistant.chat(sessionId, question);
+        // 1. Get short conversation context (for follow-up understanding)
+        String conversation =
+                sessionMemoryStore.getConversationContext(sessionId, 6);
+
+        // 2. Rewrite question (fix references like "it", "that", etc.)
+        String rewritten =
+                questionRewriter.rewrite(conversation, question);
+
+        // 3. Expand query (add synonyms, domain terms)
+        String expandedQuery =
+                queryExpander.expand(rewritten);
+
+        // 4. Call RAG system with improved query
+        String answer =
+                assistant.chat(sessionId, expandedQuery);
 
         chatRepository.save(new ChatMessage("AI", answer));
 
-        List<String> sources = getSources(question);
+        List<String> sources = getSources(expandedQuery);
 
         return new AIResponse(answer, sources);
     }
+
+    /*****
+     * Get source of RAG response
+     *
+     * */
 
     public List<String> getSources(String question) {
 

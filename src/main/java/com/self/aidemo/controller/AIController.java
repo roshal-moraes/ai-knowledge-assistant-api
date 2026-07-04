@@ -1,10 +1,14 @@
 package com.self.aidemo.controller;
 
 import com.self.aidemo.dto.AIResponse;
+import com.self.aidemo.dto.BenchmarkResult;
 import com.self.aidemo.dto.DebugRagResponse;
 import com.self.aidemo.service.AIService;
+import com.self.aidemo.service.BenchmarkService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * REST controller exposing AI chat endpoints.
@@ -21,10 +25,12 @@ public class AIController {
 
     private final AIService aiService;
 
+    private final BenchmarkService benchmarkService;
     @Autowired
-    public AIController(AIService aiService) {
+    public AIController(AIService aiService,  BenchmarkService benchmarkService) {
 
         this.aiService = aiService;
+        this.benchmarkService = benchmarkService;
     }
 
 
@@ -79,5 +85,15 @@ public class AIController {
             @RequestParam("q") String question
     ) {
         return aiService.debugAsk(sessionId, question);
+    }
+
+    /**
+     * Executes the predefined RAG benchmark suite.
+     *
+     * @return benchmark results
+     */
+    @GetMapping("/debug/benchmark")
+    public List<BenchmarkResult> benchmark() {
+        return benchmarkService.runBenchmark();
     }
 }

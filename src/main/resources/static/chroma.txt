@@ -1,0 +1,5 @@
+Spring Boot simplifies Java development.
+
+LangChain4j provides AI features.
+
+Chroma stores vector embeddings.
