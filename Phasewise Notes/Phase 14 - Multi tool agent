@@ -1,0 +1,262 @@
+# 📘 Phase 14 - AI Agents (Introduction to Tool Calling)
+
+## Overview
+
+Phase 14 introduced the concept of **AI Agents** by exploring **Tool Calling** using LangChain4j.
+
+Until this point, the application was purely a Retrieval-Augmented Generation (RAG) system. The AI could retrieve information from uploaded documents and answer questions based on that knowledge.
+
+In this phase, the goal was to enable the AI to **perform actions** by invoking Java methods (tools) when answering user requests.
+
+---
+
+# 🎯 Objectives
+
+* Understand what AI tools are
+* Learn how LangChain4j exposes Java methods as tools
+* Register tools with an AI Assistant
+* Understand how Large Language Models decide when to invoke tools
+* Explore the interaction between RAG and Tool Calling
+
+---
+
+# 🧠 What is Tool Calling?
+
+Tool Calling allows an LLM to invoke application code instead of relying only on its own knowledge.
+
+Instead of answering entirely from the prompt, the model can decide that a task requires external information and execute a Java method.
+
+Example:
+
+```
+User:
+What time is it?
+
+↓
+
+LLM
+
+↓
+
+TimeTools.getCurrentTime()
+
+↓
+
+Current system time
+
+↓
+
+LLM generates the final response
+```
+
+The LLM is responsible for deciding **when** a tool should be used.
+
+---
+
+# 🛠 Tools Created
+
+## 1. TimeTools
+
+A simple utility tool exposing the current system time.
+
+Responsibilities:
+
+* Return the current system date and time
+* Demonstrate basic Tool Calling
+* Introduce the `@Tool` annotation
+
+Example:
+
+```java
+@Tool("Get the current system time")
+public String getCurrentTime()
+```
+
+---
+
+## 2. DocumentTools
+
+A business-oriented tool exposing application functionality.
+
+Methods implemented:
+
+* List uploaded documents
+* Count uploaded documents
+* Retrieve document details by ID
+
+Unlike `TimeTools`, this tool interacts with the application's service layer and database.
+
+Architecture:
+
+```
+LLM
+ ↓
+DocumentTools
+ ↓
+DocumentService
+ ↓
+Repository
+ ↓
+Database
+```
+
+This demonstrated how AI tools can expose real business operations.
+
+---
+
+# ⚙ Registering Tools
+
+Tools were registered using LangChain4j's `AiServices` builder.
+
+Example:
+
+```java
+.tools(timeTools, documentTools)
+```
+
+Once registered, these tools become available to the language model.
+
+---
+
+# 🔍 Expected Behavior
+
+When appropriate, the model should choose a tool automatically.
+
+Examples:
+
+User:
+
+> What time is it?
+
+Expected:
+
+```
+LLM
+↓
+
+TimeTools.getCurrentTime()
+
+↓
+
+Final Answer
+```
+
+User:
+
+> List my uploaded documents.
+
+Expected:
+
+```
+LLM
+↓
+
+DocumentTools.listDocuments()
+
+↓
+
+Database
+
+↓
+
+Final Answer
+```
+
+No manual routing or `if/else` logic is required.
+
+---
+
+# ⚠ Observation During Testing
+
+Despite correctly registering the tools, the model continued answering from the Retrieval-Augmented Generation (RAG) context instead of invoking the tools.
+
+Example:
+
+Question:
+
+> What time is it?
+
+Instead of calling `TimeTools`, the assistant answered using information retrieved from an uploaded document (`time.txt`).
+
+---
+
+# Why Did This Happen?
+
+The assistant was configured with both:
+
+* RetrievalAugmentor
+* Tool Calling
+
+Every request first passed through the retrieval pipeline.
+
+The model received document context before generating a response and therefore often considered the retrieved information sufficient, choosing not to invoke the available tools.
+
+Additionally, tool usage depends on the capabilities and decision-making of the underlying language model. Different models exhibit different levels of reliability when selecting and invoking tools.
+
+---
+
+# 🧠 Key Learnings
+
+## 1. Registering a tool does not guarantee it will be used
+
+Tools become *available* to the LLM, but the model decides whether they are necessary.
+
+---
+
+## 2. Tool Calling is model-dependent
+
+Different LLMs vary in their ability to recognize when a tool should be invoked.
+
+Tool Calling is not solely a framework feature; it also depends on the capabilities of the selected model.
+
+---
+
+## 3. RAG and Tool Calling can compete
+
+When retrieval provides seemingly relevant context, the model may answer directly instead of invoking a tool.
+
+This highlighted an important design consideration when combining multiple AI capabilities.
+
+---
+
+## 4. Tools should encapsulate business functionality
+
+Business logic remains inside services.
+
+Tools act as adapters between the AI model and the application's domain logic.
+
+```
+AI
+ ↓
+Tool
+ ↓
+Service
+ ↓
+Repository
+```
+
+This separation keeps the architecture clean and maintainable.
+
+---
+
+# Concepts Learned
+
+* AI Agents
+* Tool Calling
+* LangChain4j `@Tool`
+* AI Service Tool Registration
+* Business Tools
+* Utility Tools
+* Tool Selection
+* Service Layer Integration
+* AI-Oriented Architecture
+
+---
+
+# Outcome
+
+Although the model did not consistently invoke the registered tools due to the interaction between Retrieval-Augmented Generation and model behavior, this phase provided a strong understanding of how Tool Calling works within LangChain4j.
+
+More importantly, it demonstrated that building AI systems involves more than exposing functionality—it requires careful consideration of model capabilities, prompting, and overall application architecture.
+
+This knowledge forms the foundation for more advanced agent architectures in future phases.

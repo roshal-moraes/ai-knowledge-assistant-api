@@ -3,6 +3,7 @@ package com.self.aidemo.config;
 import com.self.aidemo.assistant.AIAssistant;
 import com.self.aidemo.assistant.StreamingAssistant;
 import com.self.aidemo.memory.SessionMemoryStore;
+import com.self.aidemo.tools.DocumentTools;
 import com.self.aidemo.tools.TimeTools;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
@@ -241,18 +242,22 @@ public class AIConfig {
     public AIAssistant aiAssistant(
             ChatModel chatModel,
             ChatMemoryProvider chatMemoryProvider,
-            RetrievalAugmentor retrievalAugmentor
+            RetrievalAugmentor retrievalAugmentor,
+            TimeTools timeTools,
+            DocumentTools documentTools
     ) {
 
         return AiServices.builder(AIAssistant.class)
                 .chatModel(chatModel)
                 .chatMemoryProvider(chatMemoryProvider)
                 .retrievalAugmentor(retrievalAugmentor)
+                .tools(timeTools, documentTools)
                 .systemMessageProvider(memoryId -> """
                         You are a helpful Java backend tutor. 
-                        Always answer using the retrieved document context when it is relevant.
-                        If the answer cannot be found in the retrieved documents, clearly say so instead of inventing information.
-                        Be concise and accurate.
+                        You have access to tools.
+                        When a user's request can be answered by using a tool, ALWAYS use the appropriate tool instead of relying on retrieved documents.
+                        Use retrieved document context for questions about uploaded documents and Java concepts.
+                        If neither a tool nor the retrieved documents can answer the question, clearly state that you do not know rather than inventing information.
                         """)
                 .build();
     }
